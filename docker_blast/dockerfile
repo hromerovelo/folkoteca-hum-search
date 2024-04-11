@@ -1,0 +1,90 @@
+#
+# BSD 2-Clause License
+#
+# Copyright (c) 2024, Hilda Romero-Velo
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are met:
+#
+# * Redistributions of source code must retain the above copyright notice, this
+#   list of conditions and the following disclaimer.
+#
+# * Redistributions in binary form must reproduce the above copyright notice,
+#   this list of conditions and the following disclaimer in the documentation
+#   and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+# AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+# DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+# SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+# OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+# OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+
+#
+#  Created by Hilda Romero-Velo on March 2024.
+#
+
+# Use Ubuntu base image.
+FROM ubuntu:latest
+
+# Update system and install necessary packages.
+RUN apt-get update && apt-get install -y \
+    openssh-server \
+    build-essential \
+    python3.11 \
+    python3-pip \
+    git \
+    automake \
+    libtool \
+    autoconf \
+    gawk \
+    flex \
+    bison \
+    make \
+    coreutils \
+    zlib1g-dev \
+    libcurl4-gnutls-dev \
+    ncbi-blast+ \
+    && rm -rf /var/lib/apt/lists/*
+
+# Clone humdrum-tools from GitHub.
+# Compile binaries (from humextra just mid2hum is needed).
+# Add humdrum-tools binaries to PATH.
+RUN git clone --recursive https://github.com/humdrum-tools/humdrum-tools.git /opt/humdrum-tools \
+    && cd /opt/humdrum-tools/humdrum && make bin \
+    && cd /opt/humdrum-tools/humextra && make library && make mid2hum \
+    && echo 'export PATH="$PATH:/opt/humdrum-tools/humdrum/bin:/opt/humdrum-tools/humextra/bin"' >> /etc/profile
+
+# Install TensorFlow and basic-pitch packages.
+RUN pip install tensorflow==2.11.1 basic-pitch
+
+# Create 'ssh' group, create 'user' user with password 'user', add 'user' to 'ssh' group and create /run/sshd directory.
+RUN groupadd ssh \
+    && useradd -m -s /bin/bash -G ssh user \
+    && echo 'root:root' | chpasswd \
+    && echo 'user:user' | chpasswd \
+    && mkdir -p /run/sshd
+
+# Add 'folkoteca' folder and set permissions.
+COPY folkoteca /home/user/folkoteca
+RUN chown -R user:user /home/user/folkoteca \
+    && chmod -R 777 /home/user/folkoteca
+
+# Compile run-blast-queries.cpp file.
+RUN g++ -o /home/user/folkoteca/blast-search /home/user/folkoteca/run-blast-queries.cpp \
+    && cd /home/user/folkoteca/features_blast_db \
+    && makeblastdb -in diatonic.fsa -dbtype prot -out diatonic_db \
+    && makeblastdb -in chromatic.fsa -dbtype prot -out chromatic_db \
+    && makeblastdb -in rhythm.fsa -dbtype prot -out rhythm_db
+
+# Expose SSH port.
+EXPOSE 22
+
+# Start SSH service.
+CMD ["/usr/sbin/sshd", "-D"]
