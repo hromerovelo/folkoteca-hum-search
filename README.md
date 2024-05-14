@@ -1,6 +1,6 @@
 # folkoteca-hum-search
 
-We provide two docker images to conduct hummed queries in the [FolkotecaGalega](https://folkotecagalega.gal/pezas) dataset. These searches can be undertaken via three different musical characteristics: chromatic distance, diatonic distance or rhythm ratio. One approach performs an Approximate Alignment to compare the given query with the prepared corpus over a specified feature. Meanwhile, the other technique uses [BLAST ](https://blast.ncbi.nlm.nih.gov/Blast.cgi)to handle the alignment process.
+We provide two docker images to conduct hummed queries in the [FolkotecaGalega](https://folkotecagalega.gal/pezas) dataset. These searches can be undertaken via three different musical characteristics: chromatic distance, diatonic distance or rhythm ratio. One approach performs an Approximate Alignment to compare the given query with the prepared corpus over a specified feature. Meanwhile, the other technique uses [BLAST](https://blast.ncbi.nlm.nih.gov/Blast.cgi) to handle the alignment process.
 
 In order to obtain the chromatic and diatonic distances from the input query, the [Basic Pitch](https://github.com/spotify/basic-pitch) library is used to convert the WAV audio file into a MIDI file. The [Humdrum Toolkit](https://www.humdrum.org/) is then used to extract those features. When performing a rhythmic search, a MIDI file must be provided, so Basic Pitch is no longer required.
 
